@@ -25,20 +25,17 @@
                 'tester': {
                     result: [],
                     log: [],
-                    result_timestamp: null,
-                    log_timestamp: null
+                    sync_timestamp: null
                 },
                 'sample' : {
                     result: [],
                     log: [],
-                    result_timestamp: null,
-                    log_timestamp: null
+                    sync_timestamp: null
                 },
                 'actual': {
                     result: [],
                     log: [],
-                    result_timestamp: null,
-                    log_timestamp: null
+                    sync_timestamp: null
                 }
             }
             var navState = {
@@ -76,177 +73,126 @@
                     for (var p of party){
                         obj[p] = d3.sum(v, d => d[p])
                     }
+                    obj['TOTAL']=d3.sum(v, d => d.PSP) + d3.sum(v, d => d.PAP)
+                    obj['MARGIN']=Math.abs(d3.sum(v, d => d.PSP) - d3.sum(v, d => d.PAP))
+                    obj['PSP_PCT']=~~Math.round(d3.sum(v, d => d.PSP) / (d3.sum(v, d => d.PSP) + d3.sum(v, d => d.PAP))*10000)/100
+                    obj['PAP_PCT']=~~Math.round(d3.sum(v, d => d.PAP) / (d3.sum(v, d => d.PSP) + d3.sum(v, d => d.PAP))*10000)/100
                     return obj 
                 })
             })
-            var d3Wrapper = new (function(){
-                this.displayNational=function(dom, result){
+            var d3Table = new (function(){
+                var dom;
+                this.setDom=function(domName){
+                    dom = document.getElementById(domName)
+                }
+                this.setContent=function(head, data, onclickFn){
                     $(dom).empty()
+                    var table = d3.select(dom).append('table')
+                        .style("border-collapse", "collapse")
+                        .style("border", "2px black solid");
+                    // header
+                    table.append("thead").append("tr")
+                        .selectAll("th").data(head)
+                            .enter().append("th")
+                            .text(function(d) { return d; })
+                            .style("border", "1px black solid")
+                            .style("padding", "5px")
+                            .style("background-color", "lightgray")
+                            .style("font-weight", "bold")
+                            .style("text-transform", "uppercase");
+                    // data
+                    table.append("tbody")
+                        .selectAll("tr").data(data)
+                            .enter().append("tr")
+                            .style('background-color', function(d){
+                                if (d[7]>50) return '#FFCCCB';
+                                else if(d[8]>50) return '#CCFEFF';
+                                else return '';
+                            })
+                            .on("click", onclickFn)
+                        .selectAll("td")
+                            .data(function(d){ return d; })
+                            .enter().append("td")
+                            .style("border", "1px black solid")
+                            .text(function(d){ return d; })
+                    
+                }
+            })
+            var d3Info = new (function(){
+                var dom;
+                this.setDom=function(domName){
+                    dom = document.getElementById(domName)
+                }
+                this.setInfo=function(logs, ts){
+                    if(logs.length > 0){
+                        $(dom).text("Count: " + logs.length + ", Last Updated: " + logs[logs.length-1]['Timestamp']  + ", Last Synced: " + ts)
+                    } else {
+                        $(dom).text("Count: 0, Last Updated: -, Last Checked: " + ts)
+                    }
+                }
+            })
+            var d3Wrapper = new (function(){
+                this.displayNational=function(result){
                     parties = getParties(result[0]); 
+                    var head = ["GRC/SMC", ...parties, "TOTAL", "MARGIN", "PSP %", "PAP %"]
                     var data = d3.flatRollup(result, v => (pobj(parties)(v)), d => d.Constituency)
                         .map(([Constituency, values]) => ({Constituency, ...values})).map(Object.values);
-
-                    var table = d3.select(dom).append('table')
-                        .style("border-collapse", "collapse")
-                        .style("border", "2px black solid");
-                    // headers
-                    table.append("thead").append("tr")
-                        .selectAll("th")
-                        .data(["Constituency", ...parties])
-                        .enter().append("th")
-                        .text(function(d) { return d; })
-                        .style("border", "1px black solid")
-                        .style("padding", "5px")
-                        .style("background-color", "lightgray")
-                        .style("font-weight", "bold")
-                        .style("text-transform", "uppercase");
-                    // data
-                    table.append("tbody")
-                        .selectAll("tr").data(data)
-                        .enter().append("tr")
-                        .on("click", function(d, i){
-                            displayor.showDetailLevel("Constituency", i[0])
-                        })
-                        .selectAll("td")
-                        .data(function(d){ return d; })
-                        .enter().append("td")
-                        .style("border", "1px black solid")
-                    //     .style("padding", "5px")
-                    //     .on("mouseover", function(){
-                    //         d3.select(this).style("background-color", "powderblue");
-                    //     })
-                    //     .on("mouseout", function(){
-                    //         d3.select(this).style("background-color", "white");
-                    //     })
-                        .text(function(d){return d;})
+                    var onclickFn = function(d, i){
+                        displayor.showDetailLevel("Constituency", i[0])
+                    }
+                    d3Table.setContent(head, data, onclickFn)
                 }
-                this.displayConstituency=function(dom, result, constituency){
-                    $(dom).empty()
+                this.displayConstituency=function(result, constituency){
                     parties = getParties(result[0]); 
+                    var head = ["Ward", ...parties, "TOTAL", "MARGIN", "PSP %", "PAP %"];
                     result = result.filter(function(d,i) { return d.Constituency == constituency })
                     var data = d3.flatRollup(result, v => (pobj(parties)(v)), d => d.Ward)
-                        .map(([Ward, values]) => ({Ward, ...values})).map(Object.values);
-
-                    var table = d3.select(dom).append('table')
-                        .style("border-collapse", "collapse")
-                        .style("border", "2px black solid");
-                    // headers
-                    table.append("thead").append("tr")
-                        .selectAll("th")
-                        .data(["Ward", ...parties])
-                        .enter().append("th")
-                        .text(function(d) { return d; })
-                        .style("border", "1px black solid")
-                        .style("padding", "5px")
-                        .style("background-color", "lightgray")
-                        .style("font-weight", "bold")
-                        .style("text-transform", "uppercase");
-                    // data
-                    table.append("tbody")
-                        .selectAll("tr").data(data)
-                        .enter().append("tr")
-                        .on("click", function(d, i){
-                            displayor.showDetailLevel("Ward", i[0])
-                        })
-                        .selectAll("td")
-                        .data(function(d){ return d; })
-                        .enter().append("td")
-                        .style("border", "1px black solid")
-                    //     .style("padding", "5px")
-                    //     .on("mouseover", function(){
-                    //         d3.select(this).style("background-color", "powderblue");
-                    //     })
-                    //     .on("mouseout", function(){
-                    //         d3.select(this).style("background-color", "white");
-                    //     })
-                        .text(function(d){return d;})
+                        .map(([Ward, values]) => ({Ward, ...values})).map(Object.values)
+                    var onclickFn = function(d, i){
+                        displayor.showDetailLevel("Ward", i[0])
+                    }
+                    d3Table.setContent(head, data, onclickFn)
                 }
-                this.displayWard=function(dom, result, ward){
-                    $(dom).empty()
+                this.displayWard=function(result, ward){
                     parties = getParties(result[0]); 
+                    var head = ["Pd", ...parties, "TOTAL", "MARGIN", "PSP %", "PAP %"];
                     result = result.filter(function(d,i) { return d.Ward == ward })
                     var data = d3.flatRollup(result, v => (pobj(parties)(v)), d => d.Pd)
                         .map(([Pd, values]) => ({Pd, ...values})).map(Object.values);
-
-                    var table = d3.select(dom).append('table')
-                        .style("border-collapse", "collapse")
-                        .style("border", "2px black solid");
-                    // headers
-                    table.append("thead").append("tr")
-                        .selectAll("th")
-                        .data(["Pd", ...parties])
-                        .enter().append("th")
-                        .text(function(d) { return d; })
-                        .style("border", "1px black solid")
-                        .style("padding", "5px")
-                        .style("background-color", "lightgray")
-                        .style("font-weight", "bold")
-                        .style("text-transform", "uppercase");
-                    // data
-                    table.append("tbody")
-                        .selectAll("tr").data(data)
-                        .enter().append("tr")
-                        .on("click", function(d, i){
-                            displayor.showDetailLevel("Pd", i[0])
-                        })
-                        .selectAll("td")
-                        .data(function(d){ return d; })
-                        .enter().append("td")
-                        .style("border", "1px black solid")
-                    //     .style("padding", "5px")
-                    //     .on("mouseover", function(){
-                    //         d3.select(this).style("background-color", "powderblue");
-                    //     })
-                    //     .on("mouseout", function(){
-                    //         d3.select(this).style("background-color", "white");
-                    //     })
-                        .text(function(d){return d;})
+                    var onclickFn = function(d, i){
+                        displayor.showDetailLevel("Pd", i[0])
+                    }
+                    d3Table.setContent(head, data, onclickFn)
                 }
-                this.displayPd=function(dom, log, pd){
-                    $(dom).empty()
-                    header = Object.keys(log[0]); 
+                this.displayPd=function(log, pd){
+                    var head = Object.keys(log[0]); 
                     log = log.filter(function(d,i) { return d.Pd == pd })
                     var data = log.map(Object.values);
-
-                    var table = d3.select(dom).append('table')
-                        .style("border-collapse", "collapse")
-                        .style("border", "2px black solid");
-                    // headers
-                    table.append("thead").append("tr")
-                        .selectAll("th")
-                        .data(header)
-                        .enter().append("th")
-                        .text(function(d) { return d; })
-                        .style("border", "1px black solid")
-                        .style("padding", "5px")
-                        .style("background-color", "lightgray")
-                        .style("font-weight", "bold")
-                        .style("text-transform", "uppercase");
-                    // data
-                    table.append("tbody")
-                        .selectAll("tr").data(data)
-                        .enter().append("tr")
-                        .selectAll("td")
-                        .data(function(d){ return d; })
-                        .enter().append("td")
-                        .style("border", "1px black solid")
-                    //     .style("padding", "5px")
-                    //     .on("mouseover", function(){
-                    //         d3.select(this).style("background-color", "powderblue");
-                    //     })
-                    //     .on("mouseout", function(){
-                    //         d3.select(this).style("background-color", "white");
-                    //     })
-                        .text(function(d){return d;})
+                    var onclickFn = function(d, i){ }
+                    d3Table.setContent(head, data, onclickFn)
+                }
+                this.displayNationalLog=function(logs, ts){
+                    d3Info.setInfo(logs, ts)
+                }
+                this.displayConstituencyLog=function(results, logs, ts, constituency){
+                    pds = results.filter(function(d,i){ return d.Constituency == constituency })
+                        .map(function(v){ return v.Pd })
+                    logs = logs.filter(function(d,i){ return pds.includes(d.Pd) })
+                    d3Info.setInfo(logs, ts)
+                }
+                this.displayWardLog=function(results, logs, ts, ward){
+                    pds = results.filter(function(d,i){ return d.Ward == ward })
+                        .map(function(v){ return v.Pd })
+                    logs = logs.filter(function(d,i){ return pds.includes(d.Pd) })
+                    d3Info.setInfo(logs, ts)
                 }
             })()
             var displayor = new (function(){
                 var displayDOMs = {};
-                var detailPhase = "tester";
+                var detailPhase = "actual";
                 var detailLevel = "National";
                 var detailParam = null;
-                var valueUnits = "count";
-                var stack = []
+                var levelStack = []
                 this.addDom=function(name, htmlId){
                     displayDOMs[name] = document.getElementById(htmlId)
                 
@@ -256,7 +202,7 @@
                     this.showResult()
                 }
                 this.showDetailLevel=function(level, param){
-                    stack.push({level:detailLevel, param:detailParam})
+                    levelStack.push({level:detailLevel, param:detailParam})
                     detailLevel = level;
                     detailParam = param;
                     this.showResult()
@@ -264,29 +210,33 @@
                 this.showResult=function(){
                     switch(detailLevel){
                         case 'National':
-                            d3Wrapper.displayNational(displayDOMs['result'],detailData[detailPhase]['result']);
+                            $(displayDOMs['header']).text(detailLevel + " ("+ detailPhase +")")
+                            d3Wrapper.displayNationalLog(detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp']); 
+                            d3Wrapper.displayNational(detailData[detailPhase]['result']);
                             break;
                         case 'Constituency':
-                            d3Wrapper.displayConstituency(displayDOMs['result'],detailData[detailPhase]['result'], detailParam);
+                            $(displayDOMs['header']).text("GRC/SMC" + ": " + detailParam + " ("+ detailPhase +")")
+                            d3Wrapper.displayConstituencyLog(detailData[detailPhase]['result'], detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp'], detailParam); 
+                            d3Wrapper.displayConstituency(detailData[detailPhase]['result'], detailParam);
                             break;
                         case 'Ward':
-                            d3Wrapper.displayWard(displayDOMs['result'],detailData[detailPhase]['result'], detailParam);
+                            $(displayDOMs['header']).text(detailLevel + ": " + detailParam + " ("+ detailPhase +")")
+                            d3Wrapper.displayWardLog(detailData[detailPhase]['result'], detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp'], detailParam); 
+                            d3Wrapper.displayWard(detailData[detailPhase]['result'], detailParam);
                             break;
                         case 'Pd':
-                            d3Wrapper.displayPd(displayDOMs['result'],detailData[detailPhase]['log'], detailParam);
+                            $(displayDOMs['header']).text(detailLevel + ": " + detailParam + " ("+ detailPhase +")")
+                            d3Wrapper.displayPd(detailData[detailPhase]['log'], detailParam);
                             break;
                     }
                 }
                 this.back=function(){
-                    var prev = stack.pop()
+                    var prev = levelStack.pop()
                     if (prev) {
                         detailLevel = prev.level;
                         detailParam = prev.param;
                         this.showResult()
                     }
-                }
-                this.setValueUnits=function(unit){
-                    
                 }
             })()
 
@@ -311,22 +261,24 @@
                         return f(baseData['c'], baseData[x])
                     }
                     paginator.setDom("page-display")
-                    getData('tester',$('#display-data'),$('#display-logs'))
+                    getData('actual')
                 }
             }
             function logout(){
                 localStorage.removeItem("pwd");
                 paginator.setDom("page-login")
             }
-            function getData(phase, domData, domLogs){
+            function getData(phase){
                 d3.csv(getURL(phase+'_logs')).then((logRows)=> {
                     if (detailData[phase]['result'].length == 0 || detailData[phase]['log'].length != logRows.length){
                         d3.csv(getURL(phase)).then((resultRows)=> {
                             detailData[phase]['result'] = resultRows
                             detailData[phase]['log'] = logRows
+                            detailData[phase]['sync_timestamp'] = new Date(Date.now()).toISOString()
                             displayor.showPhase(phase)
                         })
                     } else {
+                        detailData[phase]['sync_timestamp'] = new Date(Date.now()).toISOString()
                         displayor.showPhase(phase)
                     }
                 })
@@ -345,7 +297,7 @@
                 </div>
             </div>
         </div>
-        <div class="page" id="page-display">
+        <div class="page" id="page-display" style="display:hidden">
             <div id="navigation-sticky">
                 <nav class="navbar bg-light navbar-light navbar-expand-lg sticky-top" onclick="getData('actual',$('#display-data'),$('#display-logs'))">
                     Actual
@@ -361,6 +313,7 @@
                 </nav>
             </div>
             <button onclick="back()"> &lt UP </button>
+            <div id="display-head"></div>
             <div id="display-data"></div>
             <div id="display-logs"></div>
 
@@ -369,8 +322,9 @@
 			paginator.addDom("page-login")
 			paginator.addDom("page-display")
 			paginator.setDom("page-login");
-            displayor.addDom('result', "display-data")
-            displayor.addDom('log', "display-logs")
+            displayor.addDom('header', "display-head")
+            d3Table.setDom("display-data")
+            d3Info.setDom("display-logs")
 		</script>
         <script>
             var passDom = document.getElementById("password")
