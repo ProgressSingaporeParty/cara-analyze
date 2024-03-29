@@ -17,6 +17,11 @@
                 font-family: 'Roboto', sans-serif;
                 font-size: large;
             }
+            th:first-child, td:first-child {
+                position:sticky;
+                left:0px;
+                background-color:white;
+            }
         </style>
         <script>
             var baseDataEnc = {}
@@ -81,13 +86,14 @@
                 })
             })
             var d3Table = new (function(){
-                var dom;
-                this.setDom=function(domName){
-                    dom = document.getElementById(domName)
+                var doms = {};
+                this.setDom=function(name, htmlId){
+                    console.log(name)
+                    doms[name] = document.getElementById(htmlId)
                 }
-                this.setContent=function(head, data, onclickFn){
-                    $(dom).empty()
-                    var table = d3.select(dom).append('table')
+                this.setContent=function(phase, head, data, onclickFn){
+                    $(doms[phase]).empty()
+                    var table = d3.select(doms[phase]).append('table')
                         .style("border-collapse", "collapse")
                         .style("border", "2px black solid");
                     // header
@@ -96,10 +102,11 @@
                             .enter().append("th")
                             .text(function(d) { return d; })
                             .style("border", "1px black solid")
-                            .style("padding", "5px")
+                            .style("padding", "7px")
                             .style("background-color", "lightgray")
                             .style("font-weight", "bold")
-                            .style("text-transform", "uppercase");
+                            .style("text-transform", "uppercase")
+                            .style("white-space", "nowrap")
                     // data
                     table.append("tbody")
                         .selectAll("tr").data(data)
@@ -114,25 +121,35 @@
                             .data(function(d){ return d; })
                             .enter().append("td")
                             .style("border", "1px black solid")
+                            .style("padding", "7px")
                             .text(function(d){ return d; })
                     
                 }
             })
             var d3Info = new (function(){
-                var dom;
-                this.setDom=function(domName){
-                    dom = document.getElementById(domName)
+                var doms = {};
+                this.setDom=function(name, htmlId){
+                    doms[name] = document.getElementById(htmlId)
                 }
-                this.setInfo=function(logs, ts){
+                this.setInfo=function(phase, logs, ts){
                     if(logs.length > 0){
-                        $(dom).text("Count: " + logs.length + ", Last Updated: " + logs[logs.length-1]['Timestamp']  + ", Last Synced: " + ts)
+                        $(doms[phase]).text("Count: " + logs.length + ", Last Updated: " + logs[logs.length-1]['Timestamp']  + ", Last Synced: " + ts)
                     } else {
-                        $(dom).text("Count: 0, Last Updated: -, Last Checked: " + ts)
+                        $(doms[phase]).text("Count: 0, Last Updated: -, Last Checked: " + ts)
                     }
                 }
             })
+            var d3Title = new (function(){
+                var doms = {};
+                this.setDom=function(name, htmlId){
+                    doms[name] = document.getElementById(htmlId)
+                }
+                this.setTitle=function(phase, title){
+                    $(doms[phase]).text(title)
+                }
+            })
             var d3Wrapper = new (function(){
-                this.displayNational=function(result){
+                this.displayNational=function(phase, result){
                     parties = getParties(result[0]); 
                     var head = ["GRC/SMC", ...parties, "TOTAL", "MARGIN", "PSP %", "PAP %"]
                     var data = d3.flatRollup(result, v => (pobj(parties)(v)), d => d.Constituency)
@@ -140,9 +157,9 @@
                     var onclickFn = function(d, i){
                         displayor.showDetailLevel("Constituency", i[0])
                     }
-                    d3Table.setContent(head, data, onclickFn)
+                    d3Table.setContent(phase, head, data, onclickFn)
                 }
-                this.displayConstituency=function(result, constituency){
+                this.displayConstituency=function(phase, result, constituency){
                     parties = getParties(result[0]); 
                     var head = ["Ward", ...parties, "TOTAL", "MARGIN", "PSP %", "PAP %"];
                     result = result.filter(function(d,i) { return d.Constituency == constituency })
@@ -151,9 +168,9 @@
                     var onclickFn = function(d, i){
                         displayor.showDetailLevel("Ward", i[0])
                     }
-                    d3Table.setContent(head, data, onclickFn)
+                    d3Table.setContent(phase, head, data, onclickFn)
                 }
-                this.displayWard=function(result, ward){
+                this.displayWard=function(phase, result, ward){
                     parties = getParties(result[0]); 
                     var head = ["Pd", ...parties, "TOTAL", "MARGIN", "PSP %", "PAP %"];
                     result = result.filter(function(d,i) { return d.Ward == ward })
@@ -162,29 +179,29 @@
                     var onclickFn = function(d, i){
                         displayor.showDetailLevel("Pd", i[0])
                     }
-                    d3Table.setContent(head, data, onclickFn)
+                    d3Table.setContent(phase, head, data, onclickFn)
                 }
-                this.displayPd=function(log, pd){
+                this.displayPd=function(phase, log, pd){
                     var head = Object.keys(log[0]); 
                     log = log.filter(function(d,i) { return d.Pd == pd })
                     var data = log.map(Object.values);
                     var onclickFn = function(d, i){ }
-                    d3Table.setContent(head, data, onclickFn)
+                    d3Table.setContent(phase, head, data, onclickFn)
                 }
-                this.displayNationalLog=function(logs, ts){
-                    d3Info.setInfo(logs, ts)
+                this.displayNationalLog=function(phase, logs, ts){
+                    d3Info.setInfo(phase, logs, ts)
                 }
-                this.displayConstituencyLog=function(results, logs, ts, constituency){
+                this.displayConstituencyLog=function(phase, results, logs, ts, constituency){
                     pds = results.filter(function(d,i){ return d.Constituency == constituency })
                         .map(function(v){ return v.Pd })
                     logs = logs.filter(function(d,i){ return pds.includes(d.Pd) })
-                    d3Info.setInfo(logs, ts)
+                    d3Info.setInfo(phase, logs, ts)
                 }
-                this.displayWardLog=function(results, logs, ts, ward){
+                this.displayWardLog=function(phase, results, logs, ts, ward){
                     pds = results.filter(function(d,i){ return d.Ward == ward })
                         .map(function(v){ return v.Pd })
                     logs = logs.filter(function(d,i){ return pds.includes(d.Pd) })
-                    d3Info.setInfo(logs, ts)
+                    d3Info.setInfo(phase, logs, ts)
                 }
             })()
             var displayor = new (function(){
@@ -201,32 +218,50 @@
                     detailPhase = phase;
                     this.showResult()
                 }
+                this.showDefault=function(){
+                    console.log("showDefault")
+                    if (detailData['actual']['sync_timestamp']){
+                        this.showResult('actual')
+                    }
+                    if (detailData['sample']['sync_timestamp']){
+                        this.showResult('sample')
+                    }
+                }
                 this.showDetailLevel=function(level, param){
                     levelStack.push({level:detailLevel, param:detailParam})
                     detailLevel = level;
                     detailParam = param;
-                    this.showResult()
+                    if (detailData['actual']['sync_timestamp']){
+                        this.showResult('actual')
+                    }
+                    if (detailData['sample']['sync_timestamp']){
+                        this.showResult('sample')
+                    }
                 }
-                this.showResult=function(){
+                this.showResult=function(detailPhase){
                     switch(detailLevel){
                         case 'National':
-                            $(displayDOMs['header']).text(detailLevel + " ("+ detailPhase +")")
-                            d3Wrapper.displayNationalLog(detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp']); 
-                            d3Wrapper.displayNational(detailData[detailPhase]['result']);
+                            // $(displayDOMs['header']).text(detailLevel + " ("+ detailPhase +")")
+                            d3Title.setTitle(detailPhase, detailLevel + " ("+ detailPhase +")")
+                            d3Wrapper.displayNationalLog(detailPhase, detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp']); 
+                            d3Wrapper.displayNational(detailPhase, detailData[detailPhase]['result']);
                             break;
                         case 'Constituency':
-                            $(displayDOMs['header']).text("GRC/SMC" + ": " + detailParam + " ("+ detailPhase +")")
-                            d3Wrapper.displayConstituencyLog(detailData[detailPhase]['result'], detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp'], detailParam); 
-                            d3Wrapper.displayConstituency(detailData[detailPhase]['result'], detailParam);
+                            // $(displayDOMs['header']).text("GRC/SMC" + ": " + detailParam + " ("+ detailPhase +")")
+                            d3Title.setTitle(detailPhase, "GRC/SMC" + ": " + detailParam + " ("+ detailPhase +")")
+                            d3Wrapper.displayConstituencyLog(detailPhase, detailData[detailPhase]['result'], detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp'], detailParam); 
+                            d3Wrapper.displayConstituency(detailPhase, detailData[detailPhase]['result'], detailParam);
                             break;
                         case 'Ward':
-                            $(displayDOMs['header']).text(detailLevel + ": " + detailParam + " ("+ detailPhase +")")
-                            d3Wrapper.displayWardLog(detailData[detailPhase]['result'], detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp'], detailParam); 
-                            d3Wrapper.displayWard(detailData[detailPhase]['result'], detailParam);
+                            // $(displayDOMs['header']).text(detailLevel + ": " + detailParam + " ("+ detailPhase +")")
+                            d3Title.setTitle(detailPhase, detailLevel + ": " + detailParam + " ("+ detailPhase +")")
+                            d3Wrapper.displayWardLog(detailPhase, detailData[detailPhase]['result'], detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp'], detailParam); 
+                            d3Wrapper.displayWard(detailPhase, detailData[detailPhase]['result'], detailParam);
                             break;
                         case 'Pd':
-                            $(displayDOMs['header']).text(detailLevel + ": " + detailParam + " ("+ detailPhase +")")
-                            d3Wrapper.displayPd(detailData[detailPhase]['log'], detailParam);
+                            // $(displayDOMs['header']).text(detailLevel + ": " + detailParam + " ("+ detailPhase +")")
+                            d3Title.setTitle(detailPhase, detailLevel + ": " + detailParam + " ("+ detailPhase +")")
+                            d3Wrapper.displayPd(detailPhase, detailData[detailPhase]['log'], detailParam);
                             break;
                     }
                 }
@@ -235,7 +270,8 @@
                     if (prev) {
                         detailLevel = prev.level;
                         detailParam = prev.param;
-                        this.showResult()
+                        this.showResult('actual')
+                        this.showResult('sample')
                     }
                 }
             })()
@@ -261,7 +297,7 @@
                         return f(baseData['c'], baseData[x])
                     }
                     paginator.setDom("page-display")
-                    getData('actual')
+                    reload()
                 }
             }
             function logout(){
@@ -275,16 +311,20 @@
                             detailData[phase]['result'] = resultRows
                             detailData[phase]['log'] = logRows
                             detailData[phase]['sync_timestamp'] = new Date(Date.now()).toISOString()
-                            displayor.showPhase(phase)
+                            displayor.showDefault()
                         })
                     } else {
                         detailData[phase]['sync_timestamp'] = new Date(Date.now()).toISOString()
-                        displayor.showPhase(phase)
+                        displayor.showDefault()
                     }
                 })
             }
             function back(){
                 displayor.back()
+            }
+            function reload(){
+                    getData('actual')
+                    getData('sample')
             }
         </script>
     </head>
@@ -298,33 +338,51 @@
             </div>
         </div>
         <div class="page" id="page-display" style="display:hidden">
-            <div id="navigation-sticky">
-                <nav class="navbar bg-light navbar-light navbar-expand-lg sticky-top" onclick="getData('actual',$('#display-data'),$('#display-logs'))">
-                    Actual
-                </nav>
-                <nav class="navbar bg-light navbar-light navbar-expand-lg sticky-top" onclick="getData('sample',$('#display-data'),$('#display-logs'))">
-                    Sample
-                </nav>
-                <nav class="navbar bg-light navbar-light navbar-expand-lg sticky-top" onclick="getData('tester',$('#display-data'),$('#display-logs'))">
-                    Tester
-                </nav>
-                <nav class="navbar bg-light navbar-light navbar-expand-lg sticky-top" onclick=logout()>
-                    Logout
-                </nav>
-            </div>
-            <button onclick="back()"> &lt UP </button>
-            <div id="display-head"></div>
-            <div id="display-data"></div>
-            <div id="display-logs"></div>
-
+            <div id="carouselExampleCaptions" class="carousel carousel-dark slide carousel-fade" data-bs-touch="true" data-bs-interval="false" data-bs-wrap="false">
+                <div class="carousel-indicators">
+                  <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                  <button type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide-to="1" aria-label="Slide 2"></button>
+                </div>
+                <div class="carousel-inner"> 
+                  <div class="carousel-item active">
+                    <div class="d-md-block" style="height:100%;width:100%;">
+                        <div id="display-actual-head" style="text-align: center; text-transform: uppercase; padding:10px; text-decoration: underline; font-weight:bold;"></div>
+                        <button onclick="back()" class="btn btn-primary w-100" > &lt UP </button>
+                        <div id="display-actual-data" style="width:100%; overflow-x: scroll;"></div>
+                        <div id="display-actual-logs"></div>
+                        <button onclick="reload()" class="btn btn-primary w-100" > Reload </button>
+                    </div>
+                  </div>
+                  <div class="carousel-item">
+                    <div class="d-md-block" style="height:100%;width:100%;"> 
+                        <div id="display-sample-head" style="text-align: center; text-transform: uppercase; padding:10px; text-decoration: underline; font-weight:bold;"></div>
+                        <button onclick="back()" class="btn btn-primary w-100" > &lt UP </button>
+                        <div id="display-sample-data" style="width:100%; overflow-x: scroll;"></div>
+                        <div id="display-sample-logs"></div>
+                        <button onclick="reload()" class="btn btn-primary w-100" > Reload </button>
+                    </div>
+                  </div>
+                </div>
+                <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="prev">
+                  <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                  <span class="visually-hidden">Previous</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleCaptions" data-bs-slide="next">
+                  <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                  <span class="visually-hidden">Next</span>
+                </button>
+              </div>
         </div>
 		<script>
 			paginator.addDom("page-login")
 			paginator.addDom("page-display")
 			paginator.setDom("page-login");
-            displayor.addDom('header', "display-head")
-            d3Table.setDom("display-data")
-            d3Info.setDom("display-logs")
+            d3Title.setDom('actual', "display-actual-head")
+            d3Title.setDom('sample', "display-sample-head")
+            d3Table.setDom("actual","display-actual-data")
+            d3Table.setDom("sample","display-sample-data")
+            d3Info.setDom("actual","display-actual-logs")
+            d3Info.setDom("sample","display-sample-logs")
 		</script>
         <script>
             var passDom = document.getElementById("password")
