@@ -227,8 +227,12 @@
                         this.showResult('sample')
                     }
                 }
+                this.getDetail=function(){
+                    return {level:detailLevel, param:detailParam}
+                }
                 this.showDetailLevel=function(level, param){
                     levelStack.push({level:detailLevel, param:detailParam})
+                    history.pushState({level:level, param:param},"")
                     detailLevel = level;
                     detailParam = param;
                     if (detailData['actual']['sync_timestamp']){
@@ -265,14 +269,27 @@
                             break;
                     }
                 }
-                this.back=function(){
+                this.up=function(){
                     var prev = levelStack.pop()
                     if (prev) {
                         detailLevel = prev.level;
                         detailParam = prev.param;
+                        history.pushState({level:detailLevel, param:detailParam},"")
                         this.showResult('actual')
                         this.showResult('sample')
                     }
+                }
+                this.back=function(level, param){
+                    var last = levelStack[levelStack.length - 1]
+                    if( last && last.level == level ){
+                        levelStack.pop()
+                    } else {
+                        levelStack.push({level:detailLevel, param:detailParam})
+                    }
+                    detailLevel = level;
+                    detailParam = param;
+                    this.showResult('actual')
+                    this.showResult('sample')
                 }
             })()
 
@@ -319,12 +336,15 @@
                     }
                 })
             }
-            function back(){
-                displayor.back()
+            function up(){
+                displayor.up()
             }
             function reload(){
                     getData('actual')
                     getData('sample')
+            }
+            window.onpopstate = (event) => {
+                displayor.back(event.state.level, event.state.param)
             }
         </script>
     </head>
@@ -347,7 +367,7 @@
                   <div class="carousel-item active">
                     <div class="d-md-block" style="height:100%;width:100%;">
                         <div id="display-actual-head" style="text-align: center; text-transform: uppercase; padding:10px; text-decoration: underline; font-weight:bold;"></div>
-                        <button onclick="back()" class="btn btn-primary w-100" > &lt UP </button>
+                        <button onclick="up()" class="btn btn-primary w-100" > &lt UP </button>
                         <div id="display-actual-data" style="width:100%; overflow-x: scroll;"></div>
                         <div id="display-actual-logs"></div>
                         <button onclick="reload()" class="btn btn-primary w-100" > Reload </button>
@@ -356,7 +376,7 @@
                   <div class="carousel-item">
                     <div class="d-md-block" style="height:100%;width:100%;"> 
                         <div id="display-sample-head" style="text-align: center; text-transform: uppercase; padding:10px; text-decoration: underline; font-weight:bold;"></div>
-                        <button onclick="back()" class="btn btn-primary w-100" > &lt UP </button>
+                        <button onclick="up()" class="btn btn-primary w-100" > &lt UP </button>
                         <div id="display-sample-data" style="width:100%; overflow-x: scroll;"></div>
                         <div id="display-sample-logs"></div>
                         <button onclick="reload()" class="btn btn-primary w-100" > Reload </button>
@@ -398,6 +418,8 @@
                     unlock(pwd)
                 }
             })
+            var detail = displayor.getDetail()
+            history.pushState({level:detail.level, param:detail.param},"")
         </script>
     </body>
 </html>
