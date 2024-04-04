@@ -203,6 +203,10 @@
                     logs = logs.filter(function(d,i){ return pds.includes(d.Pd) })
                     d3Info.setInfo(phase, logs, ts)
                 }
+                this.displayPdLog=function(phase, logs, ts, pd){
+                    logs = logs.filter(function(d,i){ return d.Pd == pd })
+                    d3Info.setInfo(phase, logs, ts)
+                }
             })()
             var displayor = new (function(){
                 var displayDOMs = {};
@@ -245,26 +249,23 @@
                 this.showResult=function(detailPhase){
                     switch(detailLevel){
                         case 'National':
-                            // $(displayDOMs['header']).text(detailLevel + " ("+ detailPhase +")")
                             d3Title.setTitle(detailPhase, detailLevel + " ("+ detailPhase +")")
                             d3Wrapper.displayNationalLog(detailPhase, detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp']); 
                             d3Wrapper.displayNational(detailPhase, detailData[detailPhase]['result']);
                             break;
                         case 'Constituency':
-                            // $(displayDOMs['header']).text("GRC/SMC" + ": " + detailParam + " ("+ detailPhase +")")
                             d3Title.setTitle(detailPhase, "GRC/SMC" + ": " + detailParam + " ("+ detailPhase +")")
                             d3Wrapper.displayConstituencyLog(detailPhase, detailData[detailPhase]['result'], detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp'], detailParam); 
                             d3Wrapper.displayConstituency(detailPhase, detailData[detailPhase]['result'], detailParam);
                             break;
                         case 'Ward':
-                            // $(displayDOMs['header']).text(detailLevel + ": " + detailParam + " ("+ detailPhase +")")
                             d3Title.setTitle(detailPhase, detailLevel + ": " + detailParam + " ("+ detailPhase +")")
                             d3Wrapper.displayWardLog(detailPhase, detailData[detailPhase]['result'], detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp'], detailParam); 
                             d3Wrapper.displayWard(detailPhase, detailData[detailPhase]['result'], detailParam);
                             break;
                         case 'Pd':
-                            // $(displayDOMs['header']).text(detailLevel + ": " + detailParam + " ("+ detailPhase +")")
                             d3Title.setTitle(detailPhase, detailLevel + ": " + detailParam + " ("+ detailPhase +")")
+                            d3Wrapper.displayPdLog(detailPhase, detailData[detailPhase]['log'], detailData[detailPhase]['sync_timestamp'], detailParam); 
                             d3Wrapper.displayPd(detailPhase, detailData[detailPhase]['log'], detailParam);
                             break;
                     }
