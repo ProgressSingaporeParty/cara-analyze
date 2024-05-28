@@ -112,8 +112,8 @@
                         .selectAll("tr").data(data)
                             .enter().append("tr")
                             .style('background-color', function(d){
-                                if (d[7]>50) return '#FFCCCB';
-                                else if(d[8]>50) return '#CCFEFF';
+                                if (d[head.indexOf("PSP %")]>50) return '#FFCCCB';
+                                else if(d[head.indexOf("PAP %")]>50) return '#CCFEFF';
                                 else return '';
                             })
                             .on("click", onclickFn)
